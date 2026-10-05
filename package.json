@@ -1,0 +1,13 @@
+{
+  "name": "fdp-online",
+  "version": "1.0.0",
+  "description": "Jogo de cartas F.D.P. (Foi de Propósito / Fodinha) para jogar online com os amigos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

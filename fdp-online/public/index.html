@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>F.D.P. Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Figtree:wght@400;600;800&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+/* Layout: placar no topo, carta preta + respostas no centro, mão de cartas brancas embaixo, chat lateral */
+:root {
+  --bg: #1b1520;
+  --bg-2: #261d2c;
+  --ink: #f4ecdf;
+  --muted: #b3a8b8;
+  --hot: #ff4f3a;
+  --gold: #f6c343;
+  --black-card: #0c0b0d;
+  --white-card: #fbf7ee;
+  --card-ink: #171419;
+  --line: rgba(244, 236, 223, .13);
+  --display: "Bowlby One", "Arial Black", Impact, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: radial-gradient(110% 80% at 50% 0%, var(--bg-2), var(--bg) 70%) fixed, var(--bg);
+  color: var(--ink); font: 15px/1.45 var(--body); -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.btn { border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 800; background: var(--hot); color: #fff; box-shadow: 0 3px 0 #a52a1a; transition: transform .08s, box-shadow .08s; }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #a52a1a; }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.btn.gold { background: var(--gold); color: #2a1d05; box-shadow: 0 3px 0 #a9831c; }
+.btn.small { padding: 8px 13px; font-size: 13px; }
+.field { width: 100%; padding: 12px 14px; border-radius: 10px; border: 2px solid var(--line); background: rgba(0,0,0,.25); outline: none; }
+.field:focus { border-color: var(--gold); }
+textarea.field { min-height: 110px; resize: vertical; font-size: 13px; line-height: 1.5; }
+label, .lbl { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+.muted { color: var(--muted); }
+
+/* ---------- Cartas ---------- */
+.bcard {
+  background: var(--black-card); color: #fff; border-radius: 16px; padding: 20px 20px 46px; position: relative;
+  font: 800 clamp(18px, 2.4vw, 23px)/1.3 var(--body); box-shadow: 0 10px 30px rgba(0,0,0,.45); text-wrap: pretty;
+  border: 1px solid rgba(255,255,255,.08); width: min(420px, 100%); min-height: 210px;
+}
+.bcard::after, .wcard::after { content: "F.D.P."; position: absolute; left: 18px; bottom: 14px; font: 400 12px var(--display); opacity: .55; }
+.bcard .pick { position: absolute; right: 16px; bottom: 12px; font: 800 12px var(--body); text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.blank { display: inline-block; min-width: 70px; border-bottom: 3px solid currentColor; height: 1em; vertical-align: -2px; }
+.fill { color: var(--gold); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.wcard {
+  background: var(--white-card); color: var(--card-ink); border-radius: 12px; padding: 12px 12px 34px; position: relative;
+  font: 800 14.5px/1.3 var(--body); box-shadow: 0 2px 0 rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.3);
+  min-height: 140px; text-align: left; border: 0; transition: transform .15s, box-shadow .15s; overflow-wrap: anywhere;
+}
+.wcard::after { left: 12px; bottom: 10px; font-size: 10px; }
+.wcard.back { background: var(--black-card); color: #fff; display: grid; place-items: center; font: 400 15px var(--display); white-space: nowrap; border: 1px solid rgba(255,255,255,.1); }
+.wcard.back::after { display: none; }
+.wcard.can { cursor: pointer; }
+.wcard.can:hover { transform: translateY(-5px); }
+.wcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 4px var(--gold), 0 12px 22px rgba(0,0,0,.45); }
+.wcard .num { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #2a1d05; font: 800 14px/26px var(--body); text-align: center; }
+.wcard.swap.sel { box-shadow: 0 0 0 4px var(--hot), 0 12px 22px rgba(0,0,0,.45); }
+@keyframes pop { from { transform: scale(.9) translateY(10px); opacity: 0; } }
+.pop { animation: pop .3s ease-out both; }
+
+/* ---------- Home ---------- */
+#home { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+.home-box { width: min(440px, 100%); display: grid; gap: 22px; }
+.hero-cards { position: relative; height: 150px; }
+.hero-cards .bcard { position: absolute; width: 210px; min-height: 140px; font-size: 15px; padding: 14px 14px 36px; transform: rotate(-6deg); left: 0; top: 0; }
+.hero-cards .wcard { position: absolute; width: 140px; min-height: 120px; transform: rotate(7deg); left: 170px; top: 18px; font-size: 13px; }
+.logo { font-family: var(--display); font-size: clamp(64px, 18vw, 104px); line-height: .85; margin: 0; color: var(--hot); text-shadow: 4px 4px 0 #000; }
+.logo small { display: block; font-size: .23em; color: var(--ink); text-shadow: none; margin-top: 12px; }
+.home-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.err { color: #ffb4a2; min-height: 20px; font-size: 14px; }
+
+/* ---------- Lobby ---------- */
+#lobby { max-width: 960px; margin: 0 auto; padding: 28px 16px 40px; display: grid; gap: 18px; }
+.lobby-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; }
+.code { font-family: var(--mono); font-size: 44px; letter-spacing: .18em; color: var(--gold); line-height: 1; }
+.panel { background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 16px; padding: 18px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.plist li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); }
+.plist .nm { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #6fcf97; flex: none; }
+.dot.off { background: #6b6470; }
+.tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; background: var(--gold); color: #2a1d05; white-space: nowrap; }
+.tag.hot { background: var(--hot); color: #fff; }
+.x { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 0 4px; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.06); font-weight: 800; }
+.stepper b { font-family: var(--mono); font-size: 20px; min-width: 30px; text-align: center; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: 0; margin: 0; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--hot); }
+.rules { color: var(--muted); font-size: 14px; }
+.rules h3 { color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 18px; margin: 0 0 8px; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.rules b { color: var(--ink); }
+.stack { display: grid; gap: 14px; }
+
+/* ---------- Jogo ---------- */
+#game { display: grid; grid-template-columns: minmax(0, 1fr) 290px; min-height: 100vh; }
+@media (max-width: 960px) { #game { grid-template-columns: 1fr; } }
+.table { display: flex; flex-direction: column; min-width: 0; min-height: 100vh; }
+.topbar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-family: var(--display); color: var(--hot); font-size: 22px; }
+.info { color: var(--muted); font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; flex: 1; }
+.info b { color: var(--ink); font-family: var(--mono); }
+.score { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
+.chip { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: rgba(0,0,0,.25); border: 2px solid transparent; font-size: 14px; white-space: nowrap; }
+.chip.me { border-color: rgba(246,195,67,.35); }
+.chip.judge { border-color: var(--hot); }
+.chip b { font-family: var(--mono); color: var(--gold); }
+.chip .st { font-size: 12px; color: var(--muted); }
+.chip .st.ok { color: #6fcf97; }
+
+.stage { flex: 1; display: grid; gap: 18px; padding: 10px 16px 18px; align-content: start; justify-items: center; }
+.status { text-align: center; display: grid; gap: 8px; justify-items: center; max-width: 560px; }
+.status h2 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 3.4vw, 28px); margin: 0; line-height: 1.1; text-wrap: balance; }
+.status p { margin: 0; color: var(--muted); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; width: 100%; }
+.answer { background: var(--white-card); color: var(--card-ink); border-radius: 14px; padding: 14px 14px 40px; text-align: left; border: 0; font: 800 15px/1.35 var(--body); position: relative; box-shadow: 0 6px 16px rgba(0,0,0,.3); transition: transform .15s, box-shadow .15s; }
+.answer .fill { color: var(--hot); text-decoration-color: var(--hot); }
+.answer.can { cursor: pointer; }
+.answer.can:hover { transform: translateY(-4px); }
+.answer.sel { box-shadow: 0 0 0 4px var(--gold), 0 10px 22px rgba(0,0,0,.4); }
+.answer.win { box-shadow: 0 0 0 4px var(--gold), 0 0 40px rgba(246,195,67,.35); transform: scale(1.02); }
+.answer.lose { opacity: .55; }
+.answer .who { position: absolute; left: 14px; bottom: 12px; font: 600 12px var(--body); color: #6b5f70; }
+.answer.win .who { color: #8a5d00; }
+.answer .crown { position: absolute; right: 12px; bottom: 10px; }
+.backs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.backs .wcard { width: 86px; min-height: 116px; }
+
+.handbar { border-top: 1px solid var(--line); background: linear-gradient(transparent, rgba(0,0,0,.35)); padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.handbar .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; padding-top: 10px; }
+@media (max-width: 520px) { .hand { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- Chat ---------- */
+.feed { border-left: 1px solid var(--line); display: flex; flex-direction: column; height: 100vh; height: 100dvh; position: sticky; top: 0; background: rgba(0,0,0,.18); }
+@media (max-width: 960px) { .feed { border-left: 0; border-top: 1px solid var(--line); height: 320px; position: static; } }
+.feed h3 { margin: 0; padding: 12px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--line); }
+.msgs { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.msgs .sys { color: var(--muted); }
+.msgs .chat b { color: var(--gold); }
+.chatform { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+.chatform .field { padding: 9px 12px; }
+
+.overlay { position: fixed; inset: 0; background: rgba(12,8,14,.75); display: grid; place-items: center; padding: 16px; z-index: 20; backdrop-filter: blur(3px); }
+.sheet { width: min(520px, 100%); background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 22px; display: grid; gap: 16px; max-height: 90vh; overflow: auto; }
+.trophy { font-family: var(--display); font-size: clamp(34px, 8vw, 48px); color: var(--gold); line-height: 1; text-wrap: balance; }
+.res { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.res td { padding: 8px 6px; border-top: 1px solid var(--line); }
+.res td:last-child { text-align: right; font-family: var(--mono); color: var(--gold); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--hot); color: #fff; padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 30; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.conn { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #000; padding: 6px 12px; border-radius: 999px; font-size: 13px; z-index: 30; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<section id="home">
+  <div class="home-box">
+    <div class="hero-cards" aria-hidden="true">
+      <div class="bcard">Desculpa o atraso, eu estava ocupado com <span class="blank"></span>.</div>
+      <div class="wcard">O tiozão do pavê</div>
+    </div>
+    <h1 class="logo">F.D.P.<small>Foi de Propósito — online</small></h1>
+    <div>
+      <label for="name">Seu apelido</label>
+      <input id="name" class="field" maxlength="16" placeholder="Como te chamam no rolê?" autocomplete="nickname">
+    </div>
+    <button class="btn" id="createBtn">Criar sala</button>
+    <div class="or">ou entre numa sala</div>
+    <div class="home-row">
+      <input id="joinCode" class="field" maxlength="4" placeholder="Código (ex: K7QP)" style="text-transform:uppercase;font-family:var(--mono);letter-spacing:.15em" aria-label="Código da sala">
+      <button class="btn ghost" id="joinBtn">Entrar</button>
+    </div>
+    <div class="err" id="homeErr" role="alert"></div>
+    <p class="muted" style="margin:0;font-size:13px">Jogo para maiores de 18. Humor ácido garantido.</p>
+  </div>
+</section>
+
+<!-- LOBBY -->
+<section id="lobby" hidden>
+  <div class="lobby-top">
+    <div>
+      <label>Código da sala</label>
+      <div class="code" id="lobbyCode">----</div>
+      <p class="muted" style="margin:10px 0 0;font-size:14px;overflow-wrap:anywhere">Seus amigos abrem <b id="inviteUrl" style="color:var(--ink);font-family:var(--mono);user-select:all"></b> no computador ou celular deles, digitam o apelido e entram com o código.</p>
+    </div>
+    <div class="row">
+      <button class="btn ghost small" id="copyBtn">Copiar convite</button>
+      <button class="btn ghost small" id="leaveBtn">Sair</button>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <label id="pcount">Jogadores</label>
+      <ul class="plist" id="plist"></ul>
+    </div>
+    <div class="panel stack">
+      <div>
+        <label>Pontos para vencer</label>
+        <div class="row" style="justify-content:flex-start;align-items:center;gap:18px">
+          <div class="stepper"><button id="tMinus" aria-label="Menos pontos">−</button><b id="sTarget">5</b><button id="tPlus" aria-label="Mais pontos">+</button></div>
+          <label class="check"><input type="checkbox" id="sInf"> Modo infinito</label>
+        </div>
+      </div>
+      <button class="btn" id="startBtn">Começar partida</button>
+      <p class="muted" id="waitHost" style="margin:0;text-align:center">Esperando o anfitrião começar…</p>
+    </div>
+  </div>
+  <div class="panel stack">
+    <div>
+      <h3 style="font-family:var(--display);font-weight:400;font-size:18px;margin:0 0 4px">Cartas da casa</h3>
+      <p class="muted" style="margin:0;font-size:14px" id="customInfo">Coloque as piadas internas do grupo. Uma carta por linha. Elas entram junto com as cartas do jogo.</p>
+    </div>
+    <div class="grid2" id="customEdit">
+      <div><label for="cBlack">Cartas pretas (use ____ para a lacuna)</label><textarea class="field" id="cBlack" placeholder="O que o Júnior fez no último churrasco? ____.&#10;Ninguém sabe que a Bia tem medo de ____."></textarea></div>
+      <div><label for="cWhite">Cartas brancas (respostas)</label><textarea class="field" id="cWhite" placeholder="O carro do Pedrão&#10;A mãe do Lucas dançando funk"></textarea></div>
+    </div>
+    <div class="row" style="justify-content:flex-end" id="customSaveRow"><button class="btn gold small" id="saveCustom">Salvar cartas</button></div>
+  </div>
+  <div class="panel rules">
+    <h3>Como jogar</h3>
+    <ol>
+      <li>De <b>4 a 12</b> jogadores. Cada um recebe <b>10 cartas brancas</b>.</li>
+      <li>A cada rodada, um jogador é o <b>juiz</b> (o F.D.P. da vez). Antes de revelar a pergunta, ele pode trocar cartas da própria mão.</li>
+      <li>O juiz revela uma <b>carta preta</b>. Os outros escolhem a carta branca que completa a frase do jeito mais absurdo. Se tiver duas lacunas, escolha duas cartas, na ordem.</li>
+      <li>As respostas aparecem embaralhadas e <b>sem nome</b>. O juiz escolhe a favorita, e quem mandou ganha <b>1 ponto</b>.</li>
+      <li>Todo mundo completa a mão de volta para 10 cartas e o juiz passa para o próximo.</li>
+      <li>Quem fizer os pontos combinados primeiro vence.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- JOGO -->
+<section id="game" hidden>
+  <div class="table">
+    <div class="topbar">
+      <span class="brand">F.D.P.</span>
+      <div class="info" id="info"></div>
+      <button class="btn ghost small" id="gameLeave">Sair</button>
+    </div>
+    <div class="score" id="score"></div>
+    <div class="stage">
+      <div class="status" id="status"></div>
+      <div id="blackSlot" style="width:100%;display:grid;justify-items:center"></div>
+      <div id="answersSlot" style="width:100%"></div>
+    </div>
+    <div class="handbar">
+      <div class="head"><span class="lbl" style="margin:0" id="handLbl">Suas cartas</span><div class="row" id="handActions"></div></div>
+      <div class="hand" id="hand"></div>
+    </div>
+  </div>
+  <aside class="feed">
+    <h3>Mesa</h3>
+    <div class="msgs" id="msgs"></div>
+    <form class="chatform" id="chatForm">
+      <input class="field" id="chatInput" maxlength="200" placeholder="Zoar os amigos…" autocomplete="off" aria-label="Mensagem">
+      <button class="btn small">Enviar</button>
+    </form>
+  </aside>
+</section>
+
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast" hidden></div>
+<div class="conn" id="conn" hidden>Reconectando…</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let session = null, S = null, es = null;
+let sel = [];            // ids selecionados na mão (em ordem)
+let pickSel = null;      // resposta selecionada pelo juiz
+let selKey = '';         // zera a seleção quando muda a fase/rodada
+let deadline = 0, tick = null, lastFeedLen = 0, lastAnswersKey = '';
+
+function store(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 3200);
+}
+async function api(route, body) {
+  const r = await fetch('/api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Algo deu errado.');
+  return d;
+}
+async function act(type, extra = {}) {
+  try { await api('action', { ...session, type, ...extra }); return true; }
+  catch (e) { toast(e.message); return false; }
+}
+function show(screen) { for (const id of ['home', 'lobby', 'game']) $(id).hidden = id !== screen; }
+
+// Monta a frase da carta preta, preenchendo as lacunas com as respostas
+function phrase(text, answers = []) {
+  let i = 0;
+  const parts = esc(text).split(/_{2,}/);
+  if (parts.length === 1) {
+    return answers.length ? `${parts[0]} <span class="fill">${answers.map(esc).join(' / ')}</span>` : parts[0];
+  }
+  return parts.map((p, k) => k === 0 ? p : (answers[i] != null ? `<span class="fill">${esc(answers[i++].replace(/[.!]$/, ''))}</span>` : (i++, '<span class="blank"></span>')) + p).join('');
+}
+
+// ---------- Home ----------
+$('name').value = load('fdp-name') || '';
+const urlRoom = new URLSearchParams(location.search).get('sala');
+if (urlRoom) $('joinCode').value = urlRoom.toUpperCase();
+function needName() {
+  const n = $('name').value.trim();
+  if (!n) { $('homeErr').textContent = 'Escolhe um apelido primeiro.'; $('name').focus(); return null; }
+  store('fdp-name', n); return n;
+}
+$('createBtn').onclick = async () => {
+  const name = needName(); if (!name) return;
+  try { begin(await api('create', { name })); } catch (e) { $('homeErr').textContent = e.message; }
+};
+$('joinBtn').onclick = async () => {
+  const name = needName(); if (!name) return;
+  const room = $('joinCode').value.trim().toUpperCase();
+  if (room.length !== 4) { $('homeErr').textContent = 'O código tem 4 caracteres.'; return; }
+  try { begin(await api('join', { name, room })); } catch (e) { $('homeErr').textContent = e.message; }
+};
+$('joinCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('joinBtn').click(); });
+$('name').addEventListener('keydown', (e) => { if (e.key === 'Enter') (urlRoom ? $('joinBtn') : $('createBtn')).click(); });
+
+function begin(s) {
+  session = s; store('fdp-session', s);
+  history.replaceState(null, '', '?sala=' + s.room);
+  connect();
+}
+function connect() {
+  if (es) es.close();
+  es = new EventSource('/events?' + new URLSearchParams(session));
+  es.onmessage = (ev) => {
+    $('conn').hidden = true;
+    const d = JSON.parse(ev.data);
+    if (d.kicked) return leaveLocal('Você saiu da sala.');
+    S = d; render();
+  };
+  es.onerror = async () => {
+    $('conn').hidden = false;
+    try {
+      const r = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(session) });
+      if (r.status === 404) leaveLocal('A sala não existe mais.');
+    } catch {}
+  };
+}
+function leaveLocal(msg) {
+  if (es) es.close();
+  es = null; S = null; session = null; store('fdp-session', null);
+  $('conn').hidden = true; $('overlay').hidden = true;
+  history.replaceState(null, '', location.pathname);
+  show('home');
+  if (msg) $('homeErr').textContent = msg;
+}
+
+// ---------- Lobby ----------
+// "localhost" só funciona neste PC: para convidar, usa o endereço do PC na rede
+let inviteBase = location.origin;
+if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+  fetch('/api/info').then((r) => r.json()).then((d) => {
+    if (d.lan && d.lan[0]) { inviteBase = d.lan[0]; if (S && S.phase === 'lobby') renderLobby(); }
+  }).catch(() => {});
+}
+$('copyBtn').onclick = async () => {
+  const link = inviteBase + '/?sala=' + S.code;
+  try { await navigator.clipboard.writeText(link); toast('Convite copiado! Manda no grupo.'); }
+  catch { window.prompt('Copie o link:', link); }
+};
+$('leaveBtn').onclick = () => act('leave');
+$('gameLeave').onclick = () => { if (confirm('Sair da partida?')) act('leave'); };
+$('tMinus').onclick = () => act('settings', { target: S.settings.target - 1 });
+$('tPlus').onclick = () => act('settings', { target: S.settings.target + 1 });
+$('sInf').onchange = (e) => act('settings', { infinite: e.target.checked });
+$('startBtn').onclick = () => act('start');
+$('saveCustom').onclick = async () => {
+  if (await act('custom', { black: $('cBlack').value, white: $('cWhite').value })) toast('Cartas salvas!');
+};
+let customLoaded = false;
+
+function renderLobby() {
+  const isHost = S.hostId === S.me;
+  $('lobbyCode').textContent = S.code;
+  $('inviteUrl').textContent = inviteBase;
+  $('pcount').textContent = `Jogadores (${S.players.length}/12)`;
+  $('plist').innerHTML = S.players.map((p) => `
+    <li><span class="dot ${p.connected ? '' : 'off'}"></span>
+      <span class="nm">${esc(p.name)}${p.id === S.me ? ' (você)' : ''}</span>
+      ${p.id === S.hostId ? '<span class="tag">anfitrião</span>' : ''}
+      ${isHost && p.id !== S.me ? `<button class="x" data-kick="${p.id}" aria-label="Remover ${esc(p.name)}">×</button>` : ''}
+    </li>`).join('');
+  $('plist').querySelectorAll('[data-kick]').forEach((b) => (b.onclick = () => act('kick', { pid: b.dataset.kick })));
+  $('sTarget').textContent = S.settings.target;
+  $('sInf').checked = S.settings.infinite;
+  for (const id of ['tMinus', 'tPlus', 'sInf']) $(id).disabled = !isHost || S.settings.infinite && id !== 'sInf';
+  $('sInf').disabled = !isHost;
+  const n = S.players.length;
+  $('startBtn').hidden = !isHost;
+  $('startBtn').disabled = n < 4;
+  $('startBtn').textContent = n < 4 ? `Faltam ${4 - n} jogador${4 - n > 1 ? 'es' : ''}` : 'Começar partida';
+  $('waitHost').hidden = isHost;
+  $('customEdit').hidden = !isHost;
+  $('customSaveRow').hidden = !isHost;
+  if (isHost && S.custom && !customLoaded) {
+    $('cBlack').value = S.custom.black.join('\n');
+    $('cWhite').value = S.custom.white.join('\n');
+    customLoaded = true;
+  }
+  const cc = S.customCount;
+  $('customInfo').textContent = isHost
+    ? `Coloque as piadas internas do grupo. Uma carta por linha. Salvas agora: ${cc.black} pretas e ${cc.white} brancas.`
+    : `O anfitrião adicionou ${cc.black} cartas pretas e ${cc.white} brancas da casa.`;
+}
+
+// ---------- Jogo ----------
+const P = (id) => S.players.find((p) => p.id === id);
+const nm = (id) => (id === S.me ? 'Você' : esc(P(id)?.name || 'Alguém que saiu'));
+
+function renderGame() {
+  const me = P(S.me);
+  const isJudge = S.judgeId === S.me;
+  const key = S.phase + ':' + S.round;
+  if (key !== selKey) { sel = []; pickSel = null; selKey = key; }
+
+  $('info').innerHTML = `<span>Sala <b>${S.code}</b></span><span>Rodada <b>${S.round}</b></span>
+    <span>${S.settings.infinite ? 'Modo <b>infinito</b>' : `Vence com <b>${S.settings.target}</b> pontos`}</span>`;
+
+  // Placar
+  $('score').innerHTML = [...S.players].sort((a, b) => b.points - a.points).map((p) => {
+    let st = '';
+    if (p.id === S.judgeId) st = '<span class="tag hot">juiz</span>';
+    else if (!p.active) st = '<span class="st">próxima rodada</span>';
+    else if (S.phase === 'answering') st = p.submitted ? '<span class="st ok">✓ respondeu</span>' : '<span class="st">pensando…</span>';
+    return `<div class="chip ${p.id === S.me ? 'me' : ''} ${p.id === S.judgeId ? 'judge' : ''}">
+      <span class="dot ${p.connected ? '' : 'off'}"></span>${esc(p.name)}${p.id === S.me ? ' (você)' : ''} <b>${p.points}</b> ${st}</div>`;
+  }).join('');
+
+  // Status
+  const judgeName = nm(S.judgeId);
+  let status = '';
+  if (S.phase === 'swap') {
+    status = isJudge
+      ? `<h2>Você é o juiz desta rodada</h2><p>Quer trocar alguma carta da sua mão antes? Selecione e troque. Depois, revele a pergunta.</p>
+         <div class="row"><button class="btn" id="revealBtn">Revelar pergunta</button></div>`
+      : `<h2>${judgeName} é o juiz</h2><p>Esperando revelar a pergunta…</p>`;
+  } else if (S.phase === 'answering') {
+    const waiting = `${S.submittedCount} de ${S.expected} responderam`;
+    if (isJudge) status = `<h2>Esperando as respostas</h2><p>${waiting}.</p>${S.submittedCount >= 2 && S.submittedCount < S.expected ? '<div class="row"><button class="btn ghost small" id="forceBtn">Seguir sem quem falta</button></div>' : ''}`;
+    else if (!me.active) status = `<h2>Você entra na próxima rodada</h2><p>${waiting}.</p>`;
+    else if (S.mySubmission) status = `<h2>Resposta enviada</h2><p>${waiting}. Agora é torcer.</p>`;
+    else status = `<h2>Escolha ${S.black.pick > 1 ? `${S.black.pick} cartas, na ordem` : 'sua carta'}</h2><p>Juiz: ${judgeName}. ${waiting}.</p>`;
+  } else if (S.phase === 'judging') {
+    status = isJudge
+      ? `<h2>Escolha a melhor resposta</h2><p>Ninguém sabe de quem é cada uma. Nem você.</p>`
+      : `<h2>${judgeName} está julgando…</h2><p>As respostas estão sem nome.</p>`;
+  } else if (S.phase === 'reveal') {
+    const w = S.submissions[S.winner];
+    const canNext = isJudge || S.hostId === S.me;
+    status = `<h2>${w && w.pid ? (w.pid === S.me ? 'Você levou o ponto!' : `${nm(w.pid)} levou o ponto!`) : 'Rodada encerrada'}</h2>
+      <p id="cd"></p>${canNext ? '<div class="row"><button class="btn gold small" id="nextBtn">Próxima rodada</button></div>' : ''}`;
+  }
+  $('status').innerHTML = status;
+  $('revealBtn') && ($('revealBtn').onclick = () => act('reveal'));
+  $('forceBtn') && ($('forceBtn').onclick = () => act('force'));
+  $('nextBtn') && ($('nextBtn').onclick = () => act('next'));
+  clearInterval(tick);
+  if (S.phase === 'reveal') {
+    deadline = Date.now() + S.nextIn;
+    const upd = () => { const c = $('cd'); if (c) c.textContent = `Próxima rodada em ${Math.max(0, Math.ceil((deadline - Date.now()) / 1000))}s`; };
+    upd(); tick = setInterval(upd, 250);
+  }
+
+  // Carta preta (com prévia das cartas que você selecionou)
+  if (S.black) {
+    let preview = [];
+    if (S.phase === 'answering') preview = S.mySubmission || sel.map((id) => S.hand.find((c) => c.id === id)?.text).filter(Boolean);
+    $('blackSlot').innerHTML = `<div class="bcard">${phrase(S.black.text, preview)}${S.black.pick > 1 ? `<span class="pick">Escolha ${S.black.pick}</span>` : ''}</div>`;
+  } else {
+    $('blackSlot').innerHTML = `<div class="bcard" style="display:grid;place-items:center;text-align:center;color:var(--muted)">?</div>`;
+  }
+
+  // Respostas na mesa
+  let ans = '';
+  if (S.phase === 'answering') {
+    ans = `<div class="backs">${Array.from({ length: S.submittedCount }, () => '<div class="wcard back pop">F.D.P.</div>').join('')}</div>`;
+  } else if (S.phase === 'judging' || S.phase === 'reveal' || S.phase === 'gameOver') {
+    const reveal = S.phase !== 'judging';
+    ans = `<div class="answers">${S.submissions.map((s, i) => {
+      const cls = ['answer'];
+      if (S.phase === 'judging' && isJudge) cls.push('can');
+      if (pickSel === i) cls.push('sel');
+      if (reveal && i === S.winner) cls.push('win');
+      if (reveal && i !== S.winner) cls.push('lose');
+      return `<button class="${cls.join(' ')}" data-ans="${i}" ${S.phase === 'judging' && isJudge ? '' : 'tabindex="-1"'}>
+        ${phrase(S.black.text, s.cards)}
+        ${reveal ? `<span class="who">${nm(s.pid)}</span>` : ''}${reveal && i === S.winner ? '<span class="crown tag">ponto</span>' : ''}</button>`;
+    }).join('')}</div>
+    ${S.phase === 'judging' && isJudge ? `<div class="row" style="margin-top:14px"><button class="btn gold" id="pickBtn" ${pickSel == null ? 'disabled' : ''}>Escolher esta resposta</button></div>` : ''}`;
+  }
+  const ansKey = S.phase + S.round + S.submittedCount + S.submissions.length + (pickSel ?? '') + (S.winner ?? '');
+  if (ansKey !== lastAnswersKey) { $('answersSlot').innerHTML = ans; lastAnswersKey = ansKey; }
+  $('answersSlot').querySelectorAll('.answer.can').forEach((b) => (b.onclick = () => { pickSel = Number(b.dataset.ans); renderGame(); }));
+  $('pickBtn') && ($('pickBtn').onclick = () => act('pick', { index: pickSel }));
+
+  // Mão
+  const canAnswer = S.phase === 'answering' && !isJudge && me.active && !S.mySubmission;
+  const canSwap = S.phase === 'swap' && isJudge && !S.swapped;
+  const need = S.black ? S.black.pick : 1;
+  $('hand').innerHTML = S.hand.map((c) => {
+    const i = sel.indexOf(c.id);
+    const cls = ['wcard'];
+    if (canAnswer || canSwap) cls.push('can');
+    if (canSwap) cls.push('swap');
+    if (i >= 0) cls.push('sel');
+    return `<button class="${cls.join(' ')}" data-card="${c.id}" ${canAnswer || canSwap ? '' : 'tabindex="-1"'}>${esc(c.text)}${i >= 0 && canAnswer && need > 1 ? `<span class="num">${i + 1}</span>` : ''}</button>`;
+  }).join('');
+  $('hand').querySelectorAll('.wcard.can').forEach((b) => (b.onclick = () => {
+    const id = b.dataset.card, i = sel.indexOf(id);
+    if (i >= 0) sel.splice(i, 1);
+    else if (canSwap) sel.push(id);
+    else { if (sel.length >= need) sel = need === 1 ? [] : sel.slice(0, need - 1); sel.push(id); }
+    renderGame();
+  }));
+
+  let actions = '';
+  if (canAnswer) actions = `<button class="btn" id="submitBtn" ${sel.length === need ? '' : 'disabled'}>${sel.length === need ? 'Enviar resposta' : `Selecione ${need - sel.length}`}</button>`;
+  if (canSwap) actions = `<button class="btn ghost small" id="swapBtn" ${sel.length ? '' : 'disabled'}>Trocar ${sel.length || ''} carta${sel.length === 1 ? '' : 's'}</button>`;
+  $('handActions').innerHTML = actions;
+  $('handLbl').textContent = isJudge && S.phase !== 'swap' ? 'Suas cartas (você é o juiz)' : 'Suas cartas';
+  $('submitBtn') && ($('submitBtn').onclick = () => act('submit', { cards: sel }));
+  $('swapBtn') && ($('swapBtn').onclick = () => act('swap', { cards: sel }));
+
+  renderOverlay();
+}
+
+function renderOverlay() {
+  const ov = $('overlay'), sh = $('sheet');
+  if (S.phase !== 'gameOver') { ov.hidden = true; return; }
+  const isHost = S.hostId === S.me;
+  const iWon = S.gameWinner === S.me;
+  const rows = [...S.players].sort((a, b) => b.points - a.points).map((p) => `<tr><td>${esc(p.name)}${p.id === S.me ? ' (você)' : ''}</td><td>${p.points}</td></tr>`).join('');
+  const w = S.submissions[S.winner];
+  sh.innerHTML = `<div class="trophy">${iWon ? 'Você é o maior F.D.P. da mesa!' : `${nm(S.gameWinner)} venceu!`}</div>
+    ${w ? `<div class="answer win" style="transform:none">${phrase(S.black.text, w.cards)}</div>` : ''}
+    <table class="res"><tbody>${rows}</tbody></table>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost small" id="goLeave">Sair da sala</button>
+      ${isHost ? '<button class="btn ghost small" id="goLobby">Voltar ao lobby</button><button class="btn small" id="goAgain">Jogar de novo</button>' : '<span class="muted">Esperando o anfitrião…</span>'}
+    </div>`;
+  $('goLeave').onclick = () => act('leave');
+  if (isHost) { $('goAgain').onclick = () => act('start'); $('goLobby').onclick = () => act('lobby'); }
+  ov.hidden = false;
+}
+
+function renderFeed() {
+  const box = $('msgs');
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = S.feed.map((m) => m.sys ? `<div class="sys">${esc(m.text)}</div>` : `<div class="chat"><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join('');
+  if (atBottom || S.feed.length !== lastFeedLen) box.scrollTop = box.scrollHeight;
+  lastFeedLen = S.feed.length;
+}
+$('chatForm').onsubmit = (e) => {
+  e.preventDefault();
+  const t = $('chatInput').value.trim();
+  if (!t) return;
+  $('chatInput').value = '';
+  act('chat', { text: t });
+};
+
+function render() {
+  if (S.phase === 'lobby') { show('lobby'); $('overlay').hidden = true; renderLobby(); }
+  else { customLoaded = false; show('game'); renderGame(); renderFeed(); }
+}
+
+// Retoma a sessão salva (recarregou a página / caiu a internet)
+(async () => {
+  const saved = load('fdp-session');
+  if (!saved || (urlRoom && saved.room !== urlRoom.toUpperCase())) return;
+  try {
+    const r = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(saved) });
+    if (r.ok) { session = saved; history.replaceState(null, '', '?sala=' + saved.room); connect(); }
+    else store('fdp-session', null);
+  } catch {}
+})();
+</script>
+</body>
+</html>
