@@ -10,21 +10,6 @@ Não tem nenhuma dependência: só precisa do [Node.js](https://nodejs.org) 18 o
 node server.js
 ```
 
-Abra http://localhost:3000. Para amigos na mesma rede Wi-Fi, use o IP do seu PC (ex: `http://192.168.0.10:3000`).
-
-## Colocar na internet (grátis) com o Render
-
-1. Crie um repositório no GitHub e envie esta pasta (`server.js`, `cards.js`, `package.json`, `public/`).
-2. Em https://render.com, clique em **New > Web Service** e escolha o repositório.
-3. Configure:
-   - **Runtime:** Node
-   - **Build Command:** deixe em branco (ou `npm install`)
-   - **Start Command:** `node server.js`
-   - **Instance type:** Free
-4. Depois do deploy, o Render te dá um link tipo `https://fdp-online.onrender.com`. Manda para os amigos.
-
-No plano grátis o servidor "dorme" depois de 15 minutos sem uso, e o primeiro acesso demora uns 30 segundos para acordar. As salas ficam na memória, então somem se o servidor reiniciar.
-
 ## Regras
 
 1. Cada jogador recebe 10 cartas brancas (respostas).
